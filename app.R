@@ -620,6 +620,34 @@ server <- function(input, output, session) {
       layout(hoverlabel = list(font = list(family = "Nunito Sans")))
   })
   
+  # Seasonal plot (UCSB Gold)
+  
+  output$seasonPlot <- renderPlotly({
+    p <- ggplot(filteredData(), aes(x = month(Date, label = TRUE), y = .data[[input$parameter]])) +
+      geom_boxplot(aes(text = paste("Month:", month(Date, label = TRUE),
+                                    "<br>", param_label(), ":", round(.data[[input$parameter]], 2))),
+                   fill = "#FEBC11", color = "#003660", outlier.color = "#003660") +
+      labs(
+        title = paste("Seasonal Patterns of", param_label(), "at", input$site),
+        x = "Month",
+        y = param_label()
+      ) +
+      scale_y_continuous(labels = scales::label_number()) +
+      theme_minimal(base_family = "Nunito Sans") +
+      theme(
+        plot.title = element_text(size = 18, face = "bold", color = "#003660"),
+        axis.title = element_text(size = 14, face = "bold", color = "#003660"),
+        axis.text = element_text(size = 12, color = "#003660"),
+        axis.line = element_line(color = "#003660", size = 0.8),
+        axis.ticks = element_line(color = "#003660"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(size = 0.3, color = "gray80")
+      )
+    
+    ggplotly(p, tooltip = "text") %>%
+      layout(hoverlabel = list(font = list(family = "Nunito Sans")))
+  })
+  
   # --- Leaflet map ---
   output$map <- renderLeaflet({
     icon_list <- list(

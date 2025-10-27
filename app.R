@@ -327,8 +327,26 @@ ui <- tagList(
                    paste0("Last updated: ",
                           format(max(df$Date, na.rm = TRUE), "%B %d, %Y"))
                  )
+               ),
+               # --- Give page snippet ---
+               div(
+                 style = "background-color: #EDF4FA; padding: 20px; text-align: center; border-radius: 6px; margin: 20px 0;",
+                 
+                 # First paragraph
+                 p("COPR interns have conducted weekly sampling to monitor key water-quality indicators. Updated monthly, this app allows users to toggle between years and months to visualize seasonal and long-term trends in the slough’s dynamic ecosystem."),
+                 
+                 # Second paragraph with bolded Give page reference
+                 p(strong("If you would like to support ongoing monitoring and student research at the reserve, please consider visiting our Give page.")),
+                 
+                 # Give page button
+                 tags$a(
+                   href = "https://give.ucsb.edu/campaigns/58565/donations/new",
+                   target = "_blank",
+                   class = "btn btn-primary",
+                   style = "margin-top: 10px;",  # Adds spacing above button
+                   "Donate"
+                 )
                )
- #test button here              
       ),
       
       tabPanel("Trends",

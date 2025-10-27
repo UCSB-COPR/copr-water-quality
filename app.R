@@ -7,6 +7,8 @@ library(leaflet)
 library(bslib)
 library(plotly)
 library(shinyWidgets) 
+library(tidyr)
+library(purrr)
 
 # Load and clean data
 df <- readr::read_csv("data/water_quality_data.csv", show_col_types = FALSE)
@@ -364,7 +366,6 @@ ui <- tagList(
                          selected = range(df$Year),
                          grid = TRUE
                        ),
-                       
                        sliderTextInput(
                          inputId = "monthRange",
                          label = "Months:",
@@ -372,6 +373,10 @@ ui <- tagList(
                          selected = month.name[c(1, 12)],
                          grid = TRUE
                        ),
+                       
+                       ## ✅ Add this checkbox for the dotted line feature
+                       checkboxInput("showGaps", "Show dotted lines for >1 month gaps", value = TRUE),
+                       
                        br(),
                        downloadButton("download_csv", "Download filtered data (CSV)", class = "btn-primary")
                    )
@@ -380,9 +385,18 @@ ui <- tagList(
                    tabsetPanel(
                      tabPanel("Time Series", plotlyOutput("timePlot")),
                      tabPanel("Seasonal Patterns", plotlyOutput("seasonPlot"))
+                   ),
+                   
+                   ## ✅ Add this conditional note about the dotted lines
+                   conditionalPanel(
+                     condition = "input.showGaps == true",
+                     div(
+                       style = "font-size: 0.9em; color: #003660; font-style: italic; margin-top: 10px;",
+                       "Note: Dotted lines in the time series indicate a data gap of more than 1 month between observations."
+                     )
                    )
                  )
-               )
+               ) 
       ),
       
       # --- Map Tab ---
@@ -391,10 +405,10 @@ ui <- tagList(
                h3("Monitoring Site Locations",
                   style = "color:#003660; font-family:'Nunito Sans'; font-weight:700; margin-bottom: 20px;"),
                checkboxInput("showLegend", "Show Legend", value = TRUE),
-               leafletOutput("map", height = "600px"),
+               leafletOutput("map", height = "600px")
                
                
-      ),
+      ), 
       
       # --- Methods & FAQ ---
       tabPanel("Methods & FAQ",
@@ -439,8 +453,7 @@ ui <- tagList(
                    "."
                  )
                )
-      )
-    )
+      ), 
   ),
   
   div(
@@ -474,19 +487,19 @@ ui <- tagList(
   
 )
 
+)
 # Server
 server <- function(input, output, session) {
-  # Label helper for plots (unitized)
+  # Label helper for plots
   param_label <- reactive({
     names(param_choices)[match(input$parameter, param_choices)]
   })
   
-  # Dynamic depth input
+  # Dynamic depth selector
   output$depthSelector <- renderUI({
     if (input$site == "PIER") {
       selectInput("depth", "Select Pier Depth (cm):",
-                  choices = c(10, 50, 100, 150, 200, 250), selected = 50
-      )
+                  choices = c(10, 50, 100, 150, 200, 250), selected = 50)
     } else {
       selectInput("depth", "Select Depth Layer:", choices = c("Surface", "Bottom"))
     }
@@ -496,48 +509,28 @@ server <- function(input, output, session) {
   filteredData <- reactive({
     req(input$site, input$parameter, input$yearRange, input$monthRange)
     
-    # Convert months to numbers
     selected_months <- match(input$monthRange, month.name)
     selected_years <- as.numeric(input$yearRange)
     selected_site <- input$site
-    selected_depth <- if (selected_site == "PIER") {
-      as.numeric(input$depth)
-    } else {
-      input$depth
-    }
+    selected_depth <- if (selected_site == "PIER") as.numeric(input$depth) else input$depth
     
-    # Start with full dataset
-    data <- df %>% filter(Site == selected_site)
+    data <- df %>%
+      filter(Site == selected_site,
+             Year >= selected_years[1], Year <= selected_years[2],
+             Month >= selected_months[1], Month <= selected_months[2])
     
-    # Filter by year
-    data <- data %>% filter(Year >= selected_years[1], Year <= selected_years[2])
-    
-    # Filter by month
-    data <- data %>% filter(Month >= selected_months[1], Month <= selected_months[2])
-    
-    # Filter by depth
     if (selected_site == "PIER") {
       data <- data %>% filter(Depth == selected_depth)
     } else {
       data <- data %>% filter(DepthLayer == selected_depth)
     }
     
-    # Filter out missing values for the selected parameter
     data <- data %>% filter(!is.na(.data[[input$parameter]]), !is.na(Date))
-    
-    # Debugging output
-    cat("----\n")
-    cat("Site:", selected_site, "\n")
-    cat("Years:", selected_years[1], "-", selected_years[2], "\n")
-    cat("Months:", selected_months[1], "-", selected_months[2], "\n")
-    cat("Depth:", selected_depth, "\n")
-    cat("Remaining rows after filters:", nrow(data), "\n")
-    cat("Filtered date range:", format(min(data$Date, na.rm = TRUE)), "-", format(max(data$Date, na.rm = TRUE)), "\n")
     
     return(data)
   })
   
-  # Download filtered CSV
+  # CSV download
   output$download_csv <- downloadHandler(
     filename = function() {
       paste0("devereux_filtered_",
@@ -550,14 +543,62 @@ server <- function(input, output, session) {
     }
   )
   
-  # Time series plot (UCSB Navy)
-  
+  # --- Time series plot ---
   output$timePlot <- renderPlotly({
-    p <- ggplot(filteredData(), aes(x = Date, y = .data[[input$parameter]])) +
-      geom_line(color = "#003660", size = 0.8) +
-      geom_point(aes(text = paste("Date:", Date,
-                                  "<br>", param_label(), ":", round(.data[[input$parameter]], 2))),
-                 alpha = 0.7, size = 1.5, color = "#FEBC11") +
+    df <- filteredData()
+    req(nrow(df) > 1)
+    
+    df <- df %>% arrange(Date)
+    df <- df %>% mutate(Parameter = as.numeric(.data[[input$parameter]]))
+    
+    # Group for solid line segments (<31 days between points)
+    df <- df %>%
+      mutate(
+        time_diff = as.numeric(difftime(Date, lag(Date), units = "days")),
+        segment_id = cumsum(if_else(is.na(time_diff) | time_diff > 31, 1, 0))
+      )
+    
+    solid_lines <- df %>%
+      group_by(segment_id) %>%
+      filter(n() > 1)
+    
+    # Dotted lines across gaps, only if checkbox is on
+    if (isTRUE(input$showGaps)) {
+      dotted_lines <- df %>%
+        mutate(next_Date = lead(Date),
+               next_Val = lead(Parameter),
+               time_diff = as.numeric(difftime(lead(Date), Date, units = "days"))) %>%
+        filter(!is.na(time_diff) & time_diff > 31) %>%
+        transmute(
+          x = map2(Date, next_Date, ~ c(.x, .y)),
+          y = map2(Parameter, next_Val, ~ c(.x, .y))
+        ) %>%
+        unnest(c(x, y)) %>%
+        group_by(group = rep(1:(n() / 2), each = 2))
+    } else {
+      dotted_lines <- NULL
+    }
+    
+    # Base plot
+    p <- ggplot() +
+      geom_line(data = solid_lines,
+                aes(x = Date, y = Parameter, group = segment_id),
+                color = "#003660", size = 0.8) +
+      geom_point(data = df,
+                 aes(x = Date, y = Parameter,
+                     text = paste("Date:", Date,
+                                  "<br>", param_label(), ":", round(Parameter, 2))),
+                 size = 1.5, alpha = 0.7, color = "#FEBC11")
+    
+    # Add dotted lines if available
+    if (!is.null(dotted_lines) && nrow(dotted_lines) > 1) {
+      p <- p + geom_line(data = dotted_lines,
+                         aes(x = x, y = y, group = group),
+                         linetype = "dotted", size = 0.8, color = "#003660")
+    }
+    
+    # Final styling
+    p <- p +
       labs(
         title = paste(param_label(), "at", input$site),
         x = "Date",
@@ -579,35 +620,7 @@ server <- function(input, output, session) {
       layout(hoverlabel = list(font = list(family = "Nunito Sans")))
   })
   
-  # Seasonal plot (UCSB Gold)
-  
-  output$seasonPlot <- renderPlotly({
-    p <- ggplot(filteredData(), aes(x = month(Date, label = TRUE), y = .data[[input$parameter]])) +
-      geom_boxplot(aes(text = paste("Month:", month(Date, label = TRUE),
-                                    "<br>", param_label(), ":", round(.data[[input$parameter]], 2))),
-                   fill = "#FEBC11", color = "#003660", outlier.color = "#003660") +
-      labs(
-        title = paste("Seasonal Patterns of", param_label(), "at", input$site),
-        x = "Month",
-        y = param_label()
-      ) +
-      scale_y_continuous(labels = scales::label_number()) +
-      theme_minimal(base_family = "Nunito Sans") +
-      theme(
-        plot.title = element_text(size = 18, face = "bold", color = "#003660"),
-        axis.title = element_text(size = 14, face = "bold", color = "#003660"),
-        axis.text = element_text(size = 12, color = "#003660"),
-        axis.line = element_line(color = "#003660", size = 0.8),
-        axis.ticks = element_line(color = "#003660"),
-        panel.grid.minor = element_blank(),
-        panel.grid.major = element_line(size = 0.3, color = "gray80")
-      )
-    
-    ggplotly(p, tooltip = "text") %>%
-      layout(hoverlabel = list(font = list(family = "Nunito Sans")))
-  })
-  
-  # Leaflet map with basemap toggle
+  # --- Leaflet map ---
   output$map <- renderLeaflet({
     icon_list <- list(
       "MO1" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "orange"),
@@ -650,6 +663,7 @@ server <- function(input, output, session) {
                   labels = c("MO1", "CUL1", "VBR1", "PIER"),
                   title = "Monitoring Sites", opacity = 1)
     }
+    
     map
   })
 }

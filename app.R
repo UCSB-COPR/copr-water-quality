@@ -426,9 +426,9 @@ ui <- tagList(
                  tags$summary("Parameters & units"),
                  tags$ul(
                    tags$li("Temperature (C) — water temperature in degrees Celsius."),
-                   tags$li("Salinity (ppt) — practical salinity in parts per thousand."),
                    tags$li("Dissolved Oxygen (mg/L) — concentration by mass."),
                    tags$li("Dissolved Oxygen (%) — percent saturation."),
+                   tags$li("Salinity (ppt) — practical salinity in parts per thousand."),
                    tags$li("Conductivity-specific (mS/cm) — temperature-corrected conductivity.")
                  )
                ),

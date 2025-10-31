@@ -63,9 +63,9 @@ df <- df %>%
 # Parameter choices for UI
 param_choices <- c(
   "Temperature (C)"               = "Temperature",
-  "Salinity (ppt)"                = "Salinity",
   "Dissolved Oxygen (mg/L)"       = "DO",
   "Dissolved Oxygen (%)"          = "DO_percent",
+  "Salinity (ppt)"                = "Salinity",
   "Conductivity-specific (mS/cm)" = "Conductivity"
 )
 

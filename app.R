@@ -505,6 +505,15 @@ server <- function(input, output, session) {
     }
   })
   
+  # Define fixed y-axis limits for parameters
+  param_axis_limits <- list(
+    "Temperature"  = c(0, 35),      # OK as-is
+    "DO"           = c(0, 15),      # OK as-is
+    "DO_percent"   = c(0, 250),     # 🔼 Was 200 — now allows oversaturation events
+    "Salinity"     = c(0, 150),      # 🔼 Was 40 — allows for higher salinity pulses
+    "Conductivity" = c(0, 200)       # 🔼 Was 60 — gives headroom
+  )
+  
   # Reactive filtered data
   filteredData <- reactive({
     req(input$site, input$parameter, input$yearRange, input$monthRange)
@@ -579,6 +588,9 @@ server <- function(input, output, session) {
       dotted_lines <- NULL
     }
     
+    # Get axis limits based on selected parameter
+    y_limits <- param_axis_limits[[input$parameter]]
+    
     # Base plot
     p <- ggplot() +
       geom_line(data = solid_lines,
@@ -597,56 +609,32 @@ server <- function(input, output, session) {
                          linetype = "dotted", size = 0.8, color = "#003660")
     }
     
-    # Final styling
-    p <- p +
-      labs(
-        title = paste(param_label(), "at", input$site),
-        x = "Date",
-        y = param_label()
-      ) +
-      scale_y_continuous(labels = scales::label_number()) +
-      theme_minimal(base_family = "Nunito Sans") +
-      theme(
-        plot.title = element_text(size = 18, face = "bold", color = "#003660"),
-        axis.title = element_text(size = 14, face = "bold", color = "#003660"),
-        axis.text = element_text(size = 12, color = "#003660"),
-        axis.line = element_line(color = "#003660", size = 0.8),
-        axis.ticks = element_line(color = "#003660"),
-        panel.grid.minor = element_blank(),
-        panel.grid.major = element_line(size = 0.3, color = "gray80")
-      )
+    # Apply fixed axis limits here
+    # Apply fixed axis limits here (non-destructive zoom)
+p <- p +
+  labs(
+    title = paste(param_label(), "at", input$site),
+    x = "Date",
+    y = param_label()
+  ) +
+  scale_y_continuous(labels = scales::label_number()) +
+  coord_cartesian(ylim = y_limits) +    # ✅ This preserves all data and connections
+  theme_minimal(base_family = "Nunito Sans") +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", color = "#003660"),
+    axis.title = element_text(size = 14, face = "bold", color = "#003660"),
+    axis.text = element_text(size = 12, color = "#003660"),
+    axis.line = element_line(color = "#003660", size = 0.8),
+    axis.ticks = element_line(color = "#003660"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(size = 0.3, color = "gray80")
+  )
+
     
     ggplotly(p, tooltip = "text") %>%
       layout(hoverlabel = list(font = list(family = "Nunito Sans")))
   })
   
-  # Seasonal plot (UCSB Gold)
-  
-  output$seasonPlot <- renderPlotly({
-    p <- ggplot(filteredData(), aes(x = month(Date, label = TRUE), y = .data[[input$parameter]])) +
-      geom_boxplot(aes(text = paste("Month:", month(Date, label = TRUE),
-                                    "<br>", param_label(), ":", round(.data[[input$parameter]], 2))),
-                   fill = "#FEBC11", color = "#003660", outlier.color = "#003660") +
-      labs(
-        title = paste("Seasonal Patterns of", param_label(), "at", input$site),
-        x = "Month",
-        y = param_label()
-      ) +
-      scale_y_continuous(labels = scales::label_number()) +
-      theme_minimal(base_family = "Nunito Sans") +
-      theme(
-        plot.title = element_text(size = 18, face = "bold", color = "#003660"),
-        axis.title = element_text(size = 14, face = "bold", color = "#003660"),
-        axis.text = element_text(size = 12, color = "#003660"),
-        axis.line = element_line(color = "#003660", size = 0.8),
-        axis.ticks = element_line(color = "#003660"),
-        panel.grid.minor = element_blank(),
-        panel.grid.major = element_line(size = 0.3, color = "gray80")
-      )
-    
-    ggplotly(p, tooltip = "text") %>%
-      layout(hoverlabel = list(font = list(family = "Nunito Sans")))
-  })
   
   # --- Leaflet map ---
   output$map <- renderLeaflet({

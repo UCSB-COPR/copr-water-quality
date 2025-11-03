@@ -376,6 +376,7 @@ ui <- tagList(
                        
                        ## ✅ Add this checkbox for the dotted line feature
                        checkboxInput("showGaps", "Show dotted lines for >1 month gaps", value = TRUE),
+                       checkboxInput("logTransform", "Log-transform y-axis", value = FALSE),
                        
                        br(),
                        downloadButton("download_csv", "Download filtered data (CSV)", class = "btn-primary")
@@ -394,7 +395,16 @@ ui <- tagList(
                        style = "font-size: 0.9em; color: #003660; font-style: italic; margin-top: 10px;",
                        "Note: Dotted lines in the time series indicate a data gap of more than 1 month between observations."
                      )
+                   ),
+                   ## ✅ Add this conditional note about log-transform
+                   conditionalPanel(
+                     condition = "input.logTransform == true",
+                     div(
+                       style = "font-size: 0.9em; color: #003660; font-style: italic; margin-top: 5px;",
+                       "Note: Log-transform is applied to the y-axis. Only values greater than 0 are shown; zeros and negatives are excluded from the plot."
+                     )
                    )
+          
                  )
                ) 
       ),
@@ -454,10 +464,10 @@ ui <- tagList(
                  )
                )
       ), 
-  ),
-  
-  div(
-    style = "
+    ),
+    
+    div(
+      style = "
     background-color: #FEBC11;
     text-align: center;              
     padding: 15px 0;                
@@ -469,24 +479,24 @@ ui <- tagList(
     flex-wrap: wrap;
     margin-top: 40px;
   ",
+      
+      # Clickable logos
+      tags$a(href = "https://www.nrs.ucsb.edu/", target = "_blank",
+             tags$img(src = "nrs_logo.png", height = "60px")),
+      
+      tags$a(href = "https://copr.nrs.ucsb.edu/", target = "_blank",
+             tags$img(src = "COPR_logo.png", height = "60px")),
+      
+      tags$a(href = "https://www.ucsb.edu/", target = "_blank",
+             tags$img(src = "ucsb_logo.png", height = "60px"))
+    ),
+    div(
+      "Developed by Samuel A. Cervantes and Michelle Moreno",
+      style = "text-align: center; font-size: 0.8em; color: #003660; margin-top: 5px;"
+    )
     
-    # Clickable logos
-    tags$a(href = "https://www.nrs.ucsb.edu/", target = "_blank",
-           tags$img(src = "nrs_logo.png", height = "60px")),
-    
-    tags$a(href = "https://copr.nrs.ucsb.edu/", target = "_blank",
-           tags$img(src = "COPR_logo.png", height = "60px")),
-    
-    tags$a(href = "https://www.ucsb.edu/", target = "_blank",
-           tags$img(src = "ucsb_logo.png", height = "60px"))
-  ),
-  div(
-    "Developed by Samuel A. Cervantes and Michelle Moreno",
-    style = "text-align: center; font-size: 0.8em; color: #003660; margin-top: 5px;"
   )
   
-)
-
 )
 # Server
 server <- function(input, output, session) {
@@ -506,19 +516,23 @@ server <- function(input, output, session) {
   })
   
   # Define fixed y-axis limits for parameters
-  param_axis_limits <- list(
-    "Temperature"  = c(0, 35),      # OK as-is
-    "DO"           = c(0, 15),      # OK as-is
-    "DO_percent"   = c(0, 250),     # 🔼 Was 200 — now allows oversaturation events
-    "Salinity"     = c(0, 150),      # 🔼 Was 40 — allows for higher salinity pulses
-    "Conductivity" = c(0, 200)       # 🔼 Was 60 — gives headroom
-  )
+  param_axis_limits <- reactive({
+    list(
+      "Temperature"  = c(0, 35),
+      "DO"           = c(0, 15),
+      "DO_percent"   = c(0, 250),
+      "Salinity"     = c(0, 150),
+      "Conductivity" = c(0, 200)
+    )[[input$parameter]]
+  })
+  
   
   # Reactive filtered data
   filteredData <- reactive({
     req(input$site, input$parameter, input$yearRange, input$monthRange)
     
     selected_months <- match(input$monthRange, month.name)
+    if (length(selected_months) == 1) selected_months <- c(selected_months, selected_months)
     selected_years <- as.numeric(input$yearRange)
     selected_site <- input$site
     selected_depth <- if (selected_site == "PIER") as.numeric(input$depth) else input$depth
@@ -555,12 +569,23 @@ server <- function(input, output, session) {
   # --- Time series plot ---
   output$timePlot <- renderPlotly({
     df <- filteredData()
-    req(nrow(df) > 1)
+    req(nrow(df) > 1, cancelOutput = TRUE)
     
     df <- df %>% arrange(Date)
-    df <- df %>% mutate(Parameter = as.numeric(.data[[input$parameter]]))
+    df <- df %>%
+      mutate(Parameter = as.numeric(.data[[input$parameter]])) %>%
+      filter(!is.na(Parameter))
     
-    # Group for solid line segments (<31 days between points)
+    # Apply log10 transform if enabled
+    is_log <- isTRUE(input$logTransform)
+    
+    if (is_log) {
+      df <- df %>% filter(Parameter > 0)
+      if (nrow(df) < 2) return(NULL)
+      df <- df %>% mutate(Parameter = log10(Parameter))
+    }
+    
+    # Create solid line segments for gaps < 31 days
     df <- df %>%
       mutate(
         time_diff = as.numeric(difftime(Date, lag(Date), units = "days")),
@@ -571,12 +596,15 @@ server <- function(input, output, session) {
       group_by(segment_id) %>%
       filter(n() > 1)
     
-    # Dotted lines across gaps, only if checkbox is on
+    # Optional dotted lines for > 31 day gaps
+    dotted_lines <- NULL
     if (isTRUE(input$showGaps)) {
       dotted_lines <- df %>%
-        mutate(next_Date = lead(Date),
-               next_Val = lead(Parameter),
-               time_diff = as.numeric(difftime(lead(Date), Date, units = "days"))) %>%
+        mutate(
+          next_Date = lead(Date),
+          next_Val = lead(Parameter),
+          time_diff = as.numeric(difftime(lead(Date), Date, units = "days"))
+        ) %>%
         filter(!is.na(time_diff) & time_diff > 31) %>%
         transmute(
           x = map2(Date, next_Date, ~ c(.x, .y)),
@@ -584,14 +612,9 @@ server <- function(input, output, session) {
         ) %>%
         unnest(c(x, y)) %>%
         group_by(group = rep(1:(n() / 2), each = 2))
-    } else {
-      dotted_lines <- NULL
     }
     
-    # Get axis limits based on selected parameter
-    y_limits <- param_axis_limits[[input$parameter]]
-    
-    # Base plot
+    # Plot
     p <- ggplot() +
       geom_line(data = solid_lines,
                 aes(x = Date, y = Parameter, group = segment_id),
@@ -600,55 +623,87 @@ server <- function(input, output, session) {
                  aes(x = Date, y = Parameter,
                      text = paste("Date:", Date,
                                   "<br>", param_label(), ":", round(Parameter, 2))),
-                 size = 1.5, alpha = 0.7, color = "#FEBC11")
+                 size = 1.5, alpha = 0.7, color = "#FEBC11") +
+      labs(
+        title = paste(param_label(), "at", input$site),
+        x = "Date",
+        y = if (is_log) paste0("log10(", param_label(), ")") else param_label()
+      ) +
+      scale_y_continuous(labels = scales::label_number()) +
+      theme_minimal(base_family = "Nunito Sans") +
+      theme(
+        plot.title = element_text(size = 18, face = "bold", color = "#003660"),
+        axis.title = element_text(size = 14, face = "bold", color = "#003660"),
+        axis.text = element_text(size = 12, color = "#003660"),
+        axis.line = element_line(color = "#003660", size = 0.8),
+        axis.ticks = element_line(color = "#003660"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(size = 0.3, color = "gray80")
+      )
     
-    # Add dotted lines if available
+    # Add dotted lines if they exist
     if (!is.null(dotted_lines) && nrow(dotted_lines) > 1) {
       p <- p + geom_line(data = dotted_lines,
                          aes(x = x, y = y, group = group),
                          linetype = "dotted", size = 0.8, color = "#003660")
     }
     
-    # Apply fixed axis limits here
-    # Apply fixed axis limits here (non-destructive zoom)
-p <- p +
-  labs(
-    title = paste(param_label(), "at", input$site),
-    x = "Date",
-    y = param_label()
-  ) +
-  scale_y_continuous(labels = scales::label_number()) +
-  coord_cartesian(ylim = y_limits) +    # ✅ This preserves all data and connections
-  theme_minimal(base_family = "Nunito Sans") +
-  theme(
-    plot.title = element_text(size = 18, face = "bold", color = "#003660"),
-    axis.title = element_text(size = 14, face = "bold", color = "#003660"),
-    axis.text = element_text(size = 12, color = "#003660"),
-    axis.line = element_line(color = "#003660", size = 0.8),
-    axis.ticks = element_line(color = "#003660"),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_line(size = 0.3, color = "gray80")
-  )
-
+    # Apply y-axis limits only if not log-transformed
+    if (!is_log) {
+      y_limits <- param_axis_limits()
+      if (!is.null(y_limits)) {
+        p <- p + coord_cartesian(ylim = y_limits)
+      }
+    }
     
     ggplotly(p, tooltip = "text") %>%
       layout(hoverlabel = list(font = list(family = "Nunito Sans")))
   })
   
   # --- Seasonal patterns plot ---
-  output$seasonPlot <- renderPlotly({ p <- ggplot(filteredData(),
-                                                  aes(x = month(Date, label = TRUE), 
-                                                      y = .data[[input$parameter]])) + 
-    geom_boxplot(aes(text = paste("Month:", month(Date, label = TRUE), "<br>", param_label(), ":", round(.data[[input$parameter]], 2))), fill = "#FEBC11", color = "#003660", outlier.color = "#003660") + 
-    labs( title = paste("Seasonal Patterns of", param_label(), "at", input$site), x = "Month", y = param_label() ) + 
-    scale_y_continuous(labels = scales::label_number()) + theme_minimal(base_family = "Nunito Sans") + 
-    theme( plot.title = element_text(size = 18, face = "bold", color = "#003660"), axis.title = element_text(size = 14, face = "bold", color = "#003660"), 
-           axis.text = element_text(size = 12, color = "#003660"),
-           axis.line = element_line(color = "#003660", size = 0.8), 
-           axis.ticks = element_line(color = "#003660"), panel.grid.minor = element_blank(), panel.grid.major = element_line(size = 0.3, color = "gray80") ) 
-
-  ggplotly(p, tooltip = "text") %>% 
-    layout(hoverlabel = list(font = list(family = "Nunito Sans"))) })
+  output$seasonPlot <- renderPlotly({
+    df <- filteredData()
+    req(nrow(df) > 1, cancelOutput = TRUE)
+    
+    df <- df %>%
+      mutate(Parameter = as.numeric(.data[[input$parameter]])) %>%
+      filter(!is.na(Parameter))
+    
+    # Apply log10 transform if requested
+    if (isTRUE(input$logTransform)) {
+      df <- df %>% filter(Parameter > 0)
+      if (nrow(df) < 2) return(NULL)
+      df <- df %>% mutate(Parameter = log10(Parameter))
+    }
+    
+    p <- ggplot(df,
+                aes(x = month(Date, label = TRUE), y = Parameter)) +
+      geom_boxplot(
+        aes(text = paste("Month:", month(Date, label = TRUE),
+                         "<br>", param_label(), ":", round(Parameter, 2))),
+        fill = "#FEBC11", color = "#003660", outlier.color = "#003660"
+      ) +
+      labs(
+        title = paste("Seasonal Patterns of", param_label(), "at", input$site),
+        x = "Month",
+        y = if (isTRUE(input$logTransform)) paste0("log10(", param_label(), ")") else param_label()
+      ) +
+      scale_y_continuous(labels = scales::label_number()) +
+      theme_minimal(base_family = "Nunito Sans") +
+      theme(
+        plot.title = element_text(size = 18, face = "bold", color = "#003660"),
+        axis.title = element_text(size = 14, face = "bold", color = "#003660"),
+        axis.text = element_text(size = 12, color = "#003660"),
+        axis.line = element_line(color = "#003660", size = 0.8),
+        axis.ticks = element_line(color = "#003660"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(size = 0.3, color = "gray80")
+      )
+    
+    ggplotly(p, tooltip = "text") %>%
+      layout(hoverlabel = list(font = list(family = "Nunito Sans")))
+  })
+  
   
   # --- Leaflet map ---
   output$map <- renderLeaflet({

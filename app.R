@@ -330,6 +330,22 @@ ui <- tagList(
                           format(max(df$Date, na.rm = TRUE), "%B %d, %Y"))
                  )
                ),
+               br(),
+               div(
+                 class = "info-card blue",
+                 style = "text-align: center; padding: 20px; margin-top: 20px;",
+                 
+                 h4("Download Citation", style = "margin-bottom: 20px; color: #003660; font-weight: 700;"),
+                 
+                 tags$div(
+                   style = "display: flex; justify-content: center; flex-wrap: wrap; gap: 15px;",
+                   
+                   downloadButton("download_citation_txt", "Download Citation (.txt)", class = "btn btn-primary"),
+                   downloadButton("download_citation_bib", "Download Citation (.bib)", class = "btn btn-primary"),
+                   downloadButton("download_citation_ris", "Download Citation (.ris)", class = "btn btn-primary")
+                 )
+               ), 
+               
                # --- Give page snippet ---
                div(
                  style = "background-color: #EDF4FA; padding: 20px; text-align: center; border-radius: 6px; margin: 20px 0;",
@@ -404,7 +420,7 @@ ui <- tagList(
                        "Note: Log-transform is applied to the y-axis. Only values greater than 0 are shown; zeros and negatives are excluded from the plot."
                      )
                    )
-          
+                   
                  )
                ) 
       ),
@@ -549,7 +565,11 @@ server <- function(input, output, session) {
     }
     
     data <- data %>% filter(!is.na(.data[[input$parameter]]), !is.na(Date))
-    
+    if (is.atomic(data) && !is.list(data)) {
+      # choose ONE of these depending on what the JS/widget expects:
+      # data <- as.list(data)      # JSON object with keys
+      data <- unname(as.vector(data))  # JSON array without names
+    }
     return(data)
   })
   
@@ -565,6 +585,65 @@ server <- function(input, output, session) {
       readr::write_csv(filteredData(), file, na = "")
     }
   )
+  
+  # Data citation download
+  output$download_citation_txt <- downloadHandler(
+    filename = function() {
+      "devereux_water_quality_citation.txt"
+    },
+    content = function(file) {
+      citation_text <- paste(
+        "Devereux Slough Water Quality Monitoring Dataset.",
+        "University of California, Santa Barbara, Coal Oil Point Reserve.",
+        "Accessed via interactive dashboard at https://copr.nrs.ucsb.edu/resources.",
+        "DOI: 10.12345/devereux.2025.001",  # Placeholder DOI
+        sep = "\n"
+      )
+      writeLines(citation_text, con = file)
+    }
+  )
+  
+  output$download_citation_bib <- downloadHandler(
+    filename = function() {
+      "devereux_water_quality_citation.bib"
+    },
+    content = function(file) {
+      latest_year <- format(max(df$Date, na.rm = TRUE), "%Y")
+      bibtex_entry <- paste(
+        "@dataset{devereux2025,",
+        "  author    = {Coal Oil Point Reserve},",
+        "  title     = {Devereux Slough Water Quality Monitoring Dataset},",
+        paste0("  year      = {", latest_year, "},"),
+        "  publisher = {University of California, Santa Barbara},",
+        "  url       = {https://copr.nrs.ucsb.edu/resources.},",
+        "  doi       = {10.12345/devereux.2025.001}",
+        "}", sep = "\n"
+      )
+      writeLines(bibtex_entry, con = file)
+    }
+  )
+ 
+  output$download_citation_ris <- downloadHandler(
+    filename = function() {
+      "devereux_water_quality_citation.ris"
+    },
+    content = function(file) {
+      latest_year <- format(max(df$Date, na.rm = TRUE), "%Y")
+      ris_entry <- paste(
+        "TY  - DATA",
+        "T1  - Devereux Slough Water Quality Monitoring Dataset",
+        "AU  - Coal Oil Point Reserve",
+        paste0("PY  - ", latest_year),
+        "PB  - University of California, Santa Barbara",
+        "UR  - https://copr.nrs.ucsb.edu/resources.",
+        "DO  - 10.12345/devereux.2025.001",  # Placeholder DOI
+        "ER  -",
+        sep = "\n"
+      )
+      writeLines(ris_entry, con = file)
+    }
+  )
+  
   
   # --- Time series plot ---
   output$timePlot <- renderPlotly({

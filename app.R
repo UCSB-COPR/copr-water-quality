@@ -547,16 +547,25 @@ server <- function(input, output, session) {
   filteredData <- reactive({
     req(input$site, input$parameter, input$yearRange, input$monthRange)
     
+    selected_site   <- input$site
+    selected_years  <- as.numeric(input$yearRange)
     selected_months <- match(input$monthRange, month.name)
-    if (length(selected_months) == 1) selected_months <- c(selected_months, selected_months)
-    selected_years <- as.numeric(input$yearRange)
-    selected_site <- input$site
-    selected_depth <- if (selected_site == "PIER") as.numeric(input$depth) else input$depth
+    if (length(selected_months) == 1) {
+      selected_months <- c(selected_months, selected_months)
+    }
+    
+    selected_depth <- if (selected_site == "PIER") {
+      as.numeric(input$depth)
+    } else {
+      input$depth
+    }
     
     data <- df %>%
-      filter(Site == selected_site,
-             Year >= selected_years[1], Year <= selected_years[2],
-             Month >= selected_months[1], Month <= selected_months[2])
+      filter(
+        Site == selected_site,
+        Year  >= selected_years[1], Year  <= selected_years[2],
+        Month >= selected_months[1], Month <= selected_months[2]
+      )
     
     if (selected_site == "PIER") {
       data <- data %>% filter(Depth == selected_depth)
@@ -564,14 +573,20 @@ server <- function(input, output, session) {
       data <- data %>% filter(DepthLayer == selected_depth)
     }
     
-    data <- data %>% filter(!is.na(.data[[input$parameter]]), !is.na(Date))
+    data <- data %>%
+      filter(
+        !is.na(.data[[input$parameter]]),
+        !is.na(Date)
+      )
+    
+    # Optional: convert to atomic vector if needed
     if (is.atomic(data) && !is.list(data)) {
-      # choose ONE of these depending on what the JS/widget expects:
-      # data <- as.list(data)      # JSON object with keys
-      data <- unname(as.vector(data))  # JSON array without names
+      data <- unname(as.vector(data))
     }
+    
     return(data)
   })
+  
   
   # CSV download
   output$download_csv <- downloadHandler(

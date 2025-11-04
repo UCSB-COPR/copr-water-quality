@@ -387,8 +387,10 @@ ui <- tagList(
                          label = "Months:",
                          choices = month.name,
                          selected = month.name[c(1, 12)],
-                         grid = TRUE
+                         grid = TRUE,
+                         dragRange = TRUE
                        ),
+                       
                        
                        ## ✅ Add this checkbox for the dotted line feature
                        checkboxInput("showGaps", "Show dotted lines for >1 month gaps", value = TRUE),
@@ -550,8 +552,8 @@ server <- function(input, output, session) {
     selected_site   <- input$site
     selected_years  <- as.numeric(input$yearRange)
     selected_months <- match(input$monthRange, month.name)
-    if (length(selected_months) == 1) {
-      selected_months <- c(selected_months, selected_months)
+    if (length(selected_months) < 2) {
+      selected_months <- rep(selected_months[1], 2)
     }
     
     selected_depth <- if (selected_site == "PIER") {

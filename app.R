@@ -551,7 +551,7 @@ server <- function(input, output, session) {
   param_axis_limits <- reactive({
     list(
       "Temperature"  = c(0, 35),
-      "DO"           = c(0, 15),
+      "DO"           = c(0, 25),
       "DO_percent"   = c(0, 250),
       "Salinity"     = c(0, 150),
       "Conductivity" = c(0, 200)

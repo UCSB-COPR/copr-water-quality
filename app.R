@@ -29,6 +29,17 @@ df <- df %>%
 # THEN: Use renamed columns in mutate
 df <- readr::read_csv("data/water_quality_data.csv", show_col_types = FALSE)
 
+# Optional: detect and report unparseable dates
+bad_dates <- df %>%
+  filter(is.na(suppressWarnings(mdy(Date)))) %>%
+  pull(Date) %>%
+  unique()
+
+if (length(bad_dates) > 0) {
+  warning("⚠️ Unparseable dates found:\n", paste(" -", bad_dates, collapse = "\n"))
+}
+
+# Clean and transform data
 df <- df %>%
   rename(
     Depth_raw     = `Depth (cm)`,
@@ -39,7 +50,7 @@ df <- df %>%
     DO_percent    = `Dissolved Oxygen (%)`
   ) %>%
   mutate(
-    Date = lubridate::mdy(Date),
+    Date = suppressWarnings(mdy(Date)),  # Safe parsing
     DepthLayer = case_when(
       Site == "PIER" ~ Depth_raw,  # Use raw numeric depth for PIER
       Depth_raw %in% c("Surface", "surface") ~ "Surface",
@@ -54,11 +65,14 @@ df <- df %>%
     DO = as.numeric(DO),
     Conductivity = as.numeric(Conductivity),
     DO_percent = as.numeric(DO_percent),
-    Month = lubridate::month(Date),
-    Year = lubridate::year(Date)
+    Month = month(Date),
+    Year = year(Date)
   ) %>%
-  filter(Site %in% c("MO1", "CUL1", "VBR1", "PIER")) %>%
-  drop_na(Date, Site)
+  filter(
+    Site %in% c("MO1", "CUL1", "VBR1", "PIER"),
+    !is.na(Date),  # Drop unparseable dates
+    !is.na(Site)
+  )
 
 # Parameter choices for UI
 param_choices <- c(

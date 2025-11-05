@@ -552,12 +552,14 @@ server <- function(input, output, session) {
   
   
   # Reactive filtered data
+  # Reactive filtered data
   filteredData <- reactive({
     req(input$site, input$parameter, input$yearRange, input$monthRange)
     
     selected_site   <- input$site
     selected_years  <- as.numeric(input$yearRange)
     selected_months <- match(input$monthRange, month.name)
+    
     if (length(selected_months) < 2) {
       selected_months <- rep(selected_months[1], 2)
     }
@@ -568,6 +570,7 @@ server <- function(input, output, session) {
       input$depth
     }
     
+    # --- Filter the main data ---
     data <- df %>%
       filter(
         Site == selected_site,
@@ -575,22 +578,26 @@ server <- function(input, output, session) {
         Month >= selected_months[1], Month <= selected_months[2]
       )
     
+    # --- Handle depth selection ---
     if (selected_site == "PIER") {
       data <- data %>% filter(Depth == selected_depth)
     } else {
       data <- data %>% filter(DepthLayer == selected_depth)
     }
     
-    data <- data %>%
-      filter(
-        !is.na(.data[[input$parameter]]),
-        !is.na(Date)
-      )
-    
-    # Optional: convert to atomic vector if needed
-    if (is.atomic(data) && !is.list(data)) {
-      data <- unname(as.vector(data))
+    # --- Filter by parameter safely ---
+    param <- input$parameter
+    if (!is.null(param) && param %in% names(data)) {
+      data <- data %>%
+        filter(!is.na(.data[[param]]), !is.na(Date))
+    } else {
+      data <- tibble()  # Return empty tibble if parameter missing
     }
+    
+    # --- Ensure we always return a data.frame ---
+    validate(
+      need(nrow(data) > 0, "No data available for the selected filters.")
+    )
     
     return(data)
   })
@@ -605,10 +612,11 @@ server <- function(input, output, session) {
              input$yearRange[1], "-", input$yearRange[2], ".csv")
     },
     content = function(file) {
-      readr::write_csv(filteredData(), file, na = "")
+      data <- filteredData()
+      req(nrow(data) > 0, is.data.frame(data))
+      readr::write_csv(data, file, na = "")
     }
   )
-  
   # Data citation download
   output$download_citation_txt <- downloadHandler(
     filename = function() {

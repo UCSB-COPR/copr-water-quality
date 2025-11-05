@@ -10,26 +10,10 @@ library(shinyWidgets)
 library(tidyr)
 library(purrr)
 
-# Load and clean data
+# --- Load and clean data ---
 df <- readr::read_csv("data/water_quality_data.csv", show_col_types = FALSE)
 
-# FIRST: Rename columns to short names
-df <- df %>%
-  rename(
-    Date = "Date",
-    Site = "Site",
-    Depth_raw = "Depth (cm)",
-    Temperature = "Temperature (C)",
-    Salinity = "Salinity (ppt)",
-    DO = "Dissolved Oxygen (mg/L)",
-    Conductivity = "Conductivity-specific (mS/cm)",
-    DO_percent = "Dissolved Oxygen (%)"
-  )
-
-# THEN: Use renamed columns in mutate
-df <- readr::read_csv("data/water_quality_data.csv", show_col_types = FALSE)
-
-# Optional: detect and report unparseable dates
+# --- Optional: detect and report unparseable dates ---
 bad_dates <- df %>%
   filter(is.na(suppressWarnings(mdy(Date)))) %>%
   pull(Date) %>%
@@ -39,7 +23,7 @@ if (length(bad_dates) > 0) {
   warning("⚠️ Unparseable dates found:\n", paste(" -", bad_dates, collapse = "\n"))
 }
 
-# Clean and transform data
+# --- Clean and transform data ---
 df <- df %>%
   rename(
     Depth_raw     = `Depth (cm)`,
@@ -50,9 +34,9 @@ df <- df %>%
     DO_percent    = `Dissolved Oxygen (%)`
   ) %>%
   mutate(
-    Date = suppressWarnings(mdy(Date)),  # Safe parsing
+    Date = suppressWarnings(mdy(Date)),  # safely parse date
     DepthLayer = case_when(
-      Site == "PIER" ~ Depth_raw,  # Use raw numeric depth for PIER
+      Site == "PIER" ~ Depth_raw,  # numeric depth for pier
       Depth_raw %in% c("Surface", "surface") ~ "Surface",
       Depth_raw %in% c("Bottom", "bottom") ~ "Bottom",
       suppressWarnings(as.numeric(Depth_raw)) <= 20 ~ "Surface",
@@ -70,7 +54,7 @@ df <- df %>%
   ) %>%
   filter(
     Site %in% c("MO1", "CUL1", "VBR1", "PIER"),
-    !is.na(Date),  # Drop unparseable dates
+    !is.na(Date),  # Drop bad dates
     !is.na(Site)
   )
 

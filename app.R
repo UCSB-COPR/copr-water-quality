@@ -547,15 +547,23 @@ server <- function(input, output, session) {
     }
   })
   
-  # Define fixed y-axis limits for parameters
+  # Define fixed y-axis limits for parameters (safe version)
   param_axis_limits <- reactive({
-    list(
-      "Temperature"  = c(0, 35),
-      "DO"           = c(0, 25),
-      "DO_percent"   = c(0, 250),
-      "Salinity"     = c(0, 150),
+    limits <- list(
+      "Temperature" = c(0, 35),
+      "DO" = c(0, 25),
+      "DO_percent" = c(0, 250),
+      "Salinity" = c(0, 150),
       "Conductivity" = c(0, 200)
-    )[[input$parameter]]
+    )
+    
+    param <- input$parameter
+    
+    if (!is.null(param) && param %in% names(limits)) {
+      return(limits[[param]])
+    } else {
+      return(c(NA, NA))  # or some reasonable default
+    }
   })
   
   

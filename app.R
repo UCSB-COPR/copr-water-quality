@@ -441,7 +441,7 @@ ui <- tagList(
                br(),
                h3("Methods & Frequently Asked Questions"),
                tags$details(
-                 tags$summary("Sampling design"),
+                 tags$summary("Sampling Design"),
                  p("Sites include MO1, CUL1, VBR1, and PIER within the Devereux Slough system. Non-pier sites are summarized by ",
                    em("Surface (≤20 cm)"),
                    " and ",
@@ -449,7 +449,7 @@ ui <- tagList(
                    " depth layers. PIER measurements use fixed depths (e.g., 10–250 cm).")
                ),
                tags$details(
-                 tags$summary("Parameters & units"),
+                 tags$summary("Parameters & Units"),
                  tags$ul(
                    tags$li("Temperature (C) — water temperature in degrees Celsius."),
                    tags$li("Dissolved Oxygen (mg/L) — concentration by mass."),
@@ -459,16 +459,20 @@ ui <- tagList(
                  )
                ),
                tags$details(
-                 tags$summary("Seasonality vs. interannual trends"),
+                 tags$summary("Seasonality vs. Interannual trends"),
                  p("Use the Time Series view to explore long-term changes at a site/depth, and Seasonal Patterns to compare distributions by month across years.")
                ),
                tags$details(
-                 tags$summary("Data quality & caveats"),
+                 tags$summary("Depth & Water Level"),
+                 p(" Measurements are taken with a handheld YSI Pro2030 at fixed sites along the slough. Water depth changes seasonally, so during dry periods, some sites may be too shallow to sample. When the slough is low or dry, readings may reflect air conditions rather than water conditions.")
+               ),
+               tags$details(
+                 tags$summary("Data Quality & Caveats"),
                  p("Values are plotted as provided after basic type-cleaning. Consider calibration records, instrument changes, and field conditions when interpreting extremes."),
                  p("Filters (years/months) apply to both plots and may change distributions.")
                ),
                tags$details(
-                 tags$summary("Contact & attribution"),
+                 tags$summary("Contact & Attribution"),
                  p(
                    "Developed for the Coal Oil Point Reserve (UCSB). For questions or to report issues, please contact the COPR team via",
                    tags$a(

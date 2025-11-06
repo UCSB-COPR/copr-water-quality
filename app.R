@@ -58,6 +58,14 @@ df <- df %>%
     !is.na(Site)
   )
 
+# --- Rename sites to friendly names ---
+df <- df %>%
+  mutate(Site = recode(Site,
+                       "MO1"  = "Mouth",
+                       "VBR1" = "Bridge",
+                       "CUL1" = "Culvert",
+                       "PIER" = "Pier"))
+
 # Parameter choices for UI
 param_choices <- c(
   "Temperature (C)"               = "Temperature",
@@ -291,10 +299,10 @@ ui <- tagList(
                    5,
                    div(class = "info-card blue",
                        h4("At a glance"),
-                       div(class = "badge", "Sites: MO1"),
-                       div(class = "badge", "CUL1"),
-                       div(class = "badge", "VBR1"),
-                       div(class = "badge", "PIER"),
+                       div(class = "badge", "Sites: Mouth (MO1)"),
+                       div(class = "badge", "Culvert (CUL1)"),
+                       div(class = "badge", "Bridge (VBR1)"),
+                       div(class = "badge", "Pier (PIER)"),
                        br(),
                        div(class = "badge badge-gold", "Surface & Bottom (non-PIER)"),
                        div(class = "badge badge-gold", "Fixed depths at PIER")
@@ -442,7 +450,7 @@ ui <- tagList(
                h3("Methods & Frequently Asked Questions"),
                tags$details(
                  tags$summary("Sampling Design"),
-                 p("Sites include MO1, CUL1, VBR1, and PIER within the Devereux Slough system. Non-pier sites are summarized by ",
+                 p("Sites include Mouth (MO1), Culvert(CUL1), Bridge (VBR1), and Pier (PIER) within the Devereux Slough system. Non-pier sites are summarized by ",
                    em("Surface (≤20 cm)"),
                    " and ",
                    em("Bottom (>20 cm)"),

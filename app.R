@@ -333,6 +333,7 @@ ui <- tagList(
                
                # --- Give page snippet ---
                div(
+                 class = "info-card blue",
                  style = "background-color: #EDF4FA; padding: 20px; text-align: center; border-radius: 6px; margin: 20px 0;",
                  
                  # First paragraph

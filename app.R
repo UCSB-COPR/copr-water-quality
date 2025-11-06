@@ -525,13 +525,15 @@ server <- function(input, output, session) {
   
   # Dynamic depth selector
   output$depthSelector <- renderUI({
-    if (input$site == "PIER") {
+    if (input$site == "Pier") {
+      available_depths <- sort(unique(df %>% filter(Site == "Pier") %>% pull(Depth)))
       selectInput("depth", "Select Pier Depth (cm):",
                   choices = c(10, 50, 100, 150, 200, 250), selected = 50)
     } else {
       selectInput("depth", "Select Depth Layer:", choices = c("Surface", "Bottom"))
     }
   })
+  
   
   # Define fixed y-axis limits for parameters (safe version)
   param_axis_limits <- reactive({
@@ -564,7 +566,7 @@ server <- function(input, output, session) {
       selected_months <- rep(selected_months[1], 2)
     }
     
-    selected_depth <- if (selected_site == "PIER") {
+    selected_depth <- if (selected_site == "Pier") {
       as.numeric(input$depth)
     } else {
       input$depth
@@ -579,7 +581,7 @@ server <- function(input, output, session) {
       )
     
     # --- Handle depth selection ---
-    if (selected_site == "PIER") {
+    if (selected_site == "Pier") {
       data <- data %>% filter(Depth == selected_depth)
     } else {
       data <- data %>% filter(DepthLayer == selected_depth)

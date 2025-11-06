@@ -253,6 +253,24 @@ ucsb_css <- HTML("
   .leaflet-control.leaflet-legend b {
     color: #FEBC11 !important;
   }
+  /* --- Legend font styling --- */
+.ucsb-legend {
+  font-family: 'Nunito Sans', sans-serif !important;
+  font-weight: 600 !important;
+  color: #003660 !important;
+  background-color: #F9F9F9 !important;
+  border: 2px solid #FEBC11 !important;
+  padding: 8px !important;
+  border-radius: 6px !important;
+}
+
+.ucsb-legend .legend-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #003660 !important;
+  margin-bottom: 4px;
+}
+
 ")
 
 
@@ -855,10 +873,14 @@ server <- function(input, output, session) {
     
     if (input$showLegend) {
       map <- map %>%
-        addLegend(position = "bottomright",
-                  colors = c("orange", "blue", "green", "red"),
-                  labels = c("Mouth", "Culvert", "Bridge", "Pier"),
-                  title = "Monitoring Sites", opacity = 1)
+        addLegend(
+          position = "bottomright",
+          colors = c("orange", "blue", "green", "red"),
+          labels = c("Mouth", "Culvert", "Bridge", "Pier"),
+          title = "Monitoring Sites",
+          opacity = 1,
+          className = "ucsb-legend"  
+        )
     }
     
     map

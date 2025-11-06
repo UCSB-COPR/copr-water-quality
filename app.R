@@ -857,7 +857,7 @@ server <- function(input, output, session) {
       map <- map %>%
         addLegend(position = "bottomright",
                   colors = c("orange", "blue", "green", "red"),
-                  labels = c("MO1", "CUL1", "VBR1", "PIER"),
+                  labels = c("Mouth", "Culvert", "Bridge", "Pier"),
                   title = "Monitoring Sites", opacity = 1)
     }
     

@@ -68,7 +68,7 @@ param_choices <- c(
 
 # Site coordinates
 site_locations <- tibble::tibble(
-  Site = c("MO1", "CUL1", "VBR1", "PIER"),
+  Site = c("Mouth", "Culvert", "Bridge", "Pier"),
   Latitude = c(34.410235, 34.413928, 34.417485, 34.411906),
   Longitude = c(-119.878968, -119.873961, -119.874138, -119.877158)
 )
@@ -820,10 +820,10 @@ server <- function(input, output, session) {
   # --- Leaflet map ---
   output$map <- renderLeaflet({
     icon_list <- list(
-      "MO1" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "orange"),
-      "CUL1" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "blue"),
-      "VBR1" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "green"),
-      "PIER" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "red")
+      "Mouth" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "orange"),
+      "Culvert" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "blue"),
+      "Bridge" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "green"),
+      "Pier" = awesomeIcons(icon = "tint", iconColor = "white", library = "fa", markerColor = "red")
     )
     
     map <- leaflet() %>%

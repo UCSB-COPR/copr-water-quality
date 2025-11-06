@@ -13,16 +13,6 @@ library(purrr)
 # --- Load and clean data ---
 df <- readr::read_csv("data/water_quality_data.csv", show_col_types = FALSE)
 
-# --- Optional: detect and report unparseable dates ---
-bad_dates <- df %>%
-  filter(is.na(suppressWarnings(mdy(Date)))) %>%
-  pull(Date) %>%
-  unique()
-
-if (length(bad_dates) > 0) {
-  warning("⚠️ Unparseable dates found:\n", paste(" -", bad_dates, collapse = "\n"))
-}
-
 # --- Clean and transform data ---
 df <- df %>%
   rename(
@@ -34,9 +24,9 @@ df <- df %>%
     DO_percent    = `Dissolved Oxygen (%)`
   ) %>%
   mutate(
-    Date = suppressWarnings(mdy(Date)),  # safely parse date
+    Date = suppressWarnings(mdy(Date)),  # ✅ Parse Date here only
     DepthLayer = case_when(
-      Site == "PIER" ~ Depth_raw,  # numeric depth for pier
+      Site == "PIER" ~ Depth_raw,
       Depth_raw %in% c("Surface", "surface") ~ "Surface",
       Depth_raw %in% c("Bottom", "bottom") ~ "Bottom",
       suppressWarnings(as.numeric(Depth_raw)) <= 20 ~ "Surface",
@@ -54,7 +44,7 @@ df <- df %>%
   ) %>%
   filter(
     Site %in% c("MO1", "CUL1", "VBR1", "PIER"),
-    !is.na(Date),  # Drop bad dates
+    !is.na(Date),
     !is.na(Site)
   )
 
@@ -550,8 +540,6 @@ server <- function(input, output, session) {
     }
   })
   
-  
-  # Reactive filtered data
   # Reactive filtered data
   filteredData <- reactive({
     req(input$site, input$parameter, input$yearRange, input$monthRange)

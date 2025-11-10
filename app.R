@@ -682,7 +682,7 @@ server <- function(input, output, session) {
         "Devereux Slough Water Quality Monitoring Dataset.",
         "University of California, Santa Barbara, Coal Oil Point Reserve.",
         "Accessed via interactive dashboard at https://copr.nrs.ucsb.edu/resources.",
-        "DOI: 10.12345/devereux.2025.001",  # Placeholder DOI
+        "https://doi.org/10.5281/zenodo.17574906",  # Placeholder DOI
         sep = "\n"
       )
       writeLines(citation_text, con = file)
@@ -702,7 +702,7 @@ server <- function(input, output, session) {
         paste0("  year      = {", latest_year, "},"),
         "  publisher = {University of California, Santa Barbara},",
         "  url       = {https://copr.nrs.ucsb.edu/resources.},",
-        "  doi       = {10.12345/devereux.2025.001}",
+        "  doi       = {https://doi.org/10.5281/zenodo.17574906}",
         "}", sep = "\n"
       )
       writeLines(bibtex_entry, con = file)
@@ -722,7 +722,7 @@ server <- function(input, output, session) {
         paste0("PY  - ", latest_year),
         "PB  - University of California, Santa Barbara",
         "UR  - https://copr.nrs.ucsb.edu/resources.",
-        "DO  - 10.12345/devereux.2025.001",  # Placeholder DOI
+        "DO  - https://doi.org/10.5281/zenodo.17574906",  # Placeholder DOI
         "ER  -",
         sep = "\n"
       )

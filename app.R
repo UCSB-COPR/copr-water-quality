@@ -241,18 +241,7 @@ ucsb_css <- HTML("
     border-radius: 6px;
     font-size: 0.95em;
   }
-
-  /* --- Leaflet styles --- */
-  .leaflet-control,
-  .leaflet-popup-content {
-    font-family: 'Nunito Sans', sans-serif;
-    font-weight: 600;
-    color: #003660;
-  }
-
-  .leaflet-control.leaflet-legend b {
-    color: #FEBC11 !important;
-  }
+  
 ")
 
 
@@ -344,6 +333,7 @@ ui <- tagList(
                
                # --- Give page snippet ---
                div(
+                 class = "info-card blue",
                  style = "background-color: #EDF4FA; padding: 20px; text-align: center; border-radius: 6px; margin: 20px 0;",
                  
                  # First paragraph
@@ -860,13 +850,17 @@ server <- function(input, output, session) {
         )
     }
     
-    if (input$showLegend) {
-      map <- map %>%
-        addLegend(position = "bottomright",
-                  colors = c("orange", "blue", "green", "red"),
-                  labels = c("Mouth", "Culvert", "Bridge", "Pier"),
-                  title = "Monitoring Sites", opacity = 1)
-    }
+if (input$showLegend) {
+  map <- map %>%
+    addLegend(
+      position = "bottomright",
+      colors = c("orange", "blue", "green", "red"),
+      labels = c("Mouth", "Culvert", "Bridge", "Pier"),
+      title = "Monitoring Sites",
+      opacity = 1,
+    )
+}
+
     
     map
   })

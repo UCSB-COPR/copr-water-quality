@@ -537,22 +537,25 @@ server <- function(input, output, session) {
   
   # Define fixed y-axis limits for parameters (safe version)
   param_axis_limits <- reactive({
+    req(input$parameter)  # ensure parameter input is available
+    
     limits <- list(
-      "Temperature" = c(0, 35),
-      "DO" = c(0, 25),
-      "DO_percent" = c(0, 250),
-      "Salinity" = c(0, 150),
-      "Conductivity" = c(0, 200)
+      Temperature = c(0, 35),
+      DO = c(0, 25),
+      DO_percent = c(0, 250),
+      Salinity = c(0, 150),
+      Conductivity = c(0, 200)
     )
     
     param <- input$parameter
     
-    if (!is.null(param) && param %in% names(limits)) {
+    if (param %in% names(limits)) {
       return(limits[[param]])
     } else {
-      return(c(NA, NA))  # or some reasonable default
+      return(c(NA, NA))
     }
   })
+  
   
   # Reactive filtered data
   filteredData <- reactive({
@@ -570,6 +573,10 @@ server <- function(input, output, session) {
       as.numeric(input$depth)
     } else {
       input$depth
+    }
+    
+    if (is.null(selected_depth) || length(selected_depth) == 0) {
+      return(tibble())   # Avoids the filter error
     }
     
     # --- Filter the main data ---

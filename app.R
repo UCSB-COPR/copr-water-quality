@@ -10,6 +10,62 @@ library(shinyWidgets)
 library(tidyr)
 library(purrr)
 
+# -----------------------------------------------------------
+# PRE-CLEANING STEP: Create water_quality_data.csv on app load
+# -----------------------------------------------------------
+
+raw_path  <- "data/Devereux Slough Water Monitoring Data - Master Data.csv"
+clean_path <- "data/water_quality_data.csv"
+
+if (file.exists(raw_path)) {
+  
+  raw <- readr::read_csv(
+    raw_path,
+    col_types = readr::cols(.default = readr::col_character())
+  )
+  
+  final_cols <- c(
+    "Date", "Time", "Site", "Depth (cm)", "Instrument Used",
+    "Dissolved Oxygen (mg/L)", "Dissolved Oxygen (%)",
+    "Conductivity-specific (mS/cm)", "Salinity (ppt)",
+    "Temperature (C)", "Pressure (mmHg)", "pH", "Turbidity (cm)", "Comments"
+  )
+  
+  col_map <- c("Instrument Used" = "Sample Type")
+  
+  na_tokens <- c(
+    "", "---", "--", "-", "na", "Na", "NA",
+    "N/A", "n/a", "nan", "NAN", "null", "Null", "NULL"
+  )
+  
+  clean_list <- lapply(final_cols, function(col) {
+    src <- if (col %in% names(col_map)) col_map[[col]] else col
+    
+    if (src %in% names(raw)) {
+      v <- raw[[src]] |> stringr::str_trim()
+      v[v %in% na_tokens] <- ""
+    } else {
+      v <- rep("", nrow(raw))
+    }
+    
+    return(v)
+  })
+  
+  cleaned <- as.data.frame(clean_list, stringsAsFactors = FALSE)
+  names(cleaned) <- final_cols
+  
+  # Uppercase site names
+  cleaned$Site <- toupper(cleaned$Site)
+  
+  # Save cleaned file
+  readr::write_csv(cleaned, clean_path)
+  message("✅ Cleaned data written to data/water_quality_data.csv")
+  
+} else {
+  warning("⚠️ Raw file not found at: ", raw_path)
+}
+# -----------------------------------------------------------
+
 # --- Load and clean data ---
 df <- readr::read_csv("data/water_quality_data.csv", show_col_types = FALSE)
 

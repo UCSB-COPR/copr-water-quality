@@ -487,9 +487,9 @@ ui <- tagList(
                tags$details(
                  tags$summary("Sampling Design"),
                  p("Sites include Mouth (MO1), Culvert(CUL1), Bridge (VBR1), and Pier (PIER) within the Devereux Slough system. Non-pier sites are summarized by ",
-                   em("Surface (≤20 cm)"),
+                   em("Surface (≥ 20 cm)"),
                    " and ",
-                   em("Bottom (>20 cm)"),
+                   em("Bottom (< 20 cm)"),
                    " depth layers. PIER measurements use fixed depths (e.g., 10–250 cm).")
                ),
                tags$details(

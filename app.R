@@ -173,7 +173,7 @@ ucsb_css <- HTML("
     position: relative;                 /* anchor for the logo */
     background-color: #003660;
     color: white;
-    padding: 18px 30px;
+    padding: 38px 30px;
     text-align: center;
     border-top: 4px solid #FEBC11;      /* extra gold accent */
     border-bottom: 3px solid #FEBC11;
@@ -192,14 +192,14 @@ ucsb_css <- HTML("
   .banner-logo {
     position: absolute;
     top: 50%;
-    left: 24px;
+    left: 28px;
     transform: translateY(-50%);
-    height: 56px;
+    height: 95px;
   }
 
   @media (max-width: 768px) {
-    .banner-logo { height: 42px; left: 12px; }
-    .top-banner h1 { font-size: 1.45em; padding: 0 64px; }
+    .banner-logo { height: 60px; left: 12px; }
+    .top-banner h1 { font-size: 1.4em; padding: 0 80px; }
   }
 
   /* --- Tabs --- */

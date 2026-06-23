@@ -129,6 +129,16 @@ site_locations <- tibble::tibble(
   Longitude = c(-119.878968, -119.873961, -119.874138, -119.877158)
 )
 
+# --- Reusable plain-text data citation (shown on Overview + in .txt download) ---
+data_citation <- paste0(
+  "Coal Oil Point Reserve (",
+  format(max(df$Date, na.rm = TRUE), "%Y"),
+  "). Devereux Slough Water Quality Monitoring Dataset. ",
+  "University of California, Santa Barbara, Natural Reserve System. ",
+  "Accessed via the Devereux Slough Water Quality Explorer dashboard. ",
+  "https://doi.org/10.5281/zenodo.17574906"
+)
+
 # --- UCSB brand theme ---
 ucsb_theme <- bs_theme(
   version = 5,
@@ -160,10 +170,12 @@ ucsb_css <- HTML("
 
   /* --- Clean Top Banner --- */
   .top-banner {
+    position: relative;                 /* anchor for the logo */
     background-color: #003660;
     color: white;
     padding: 18px 30px;
     text-align: center;
+    border-top: 4px solid #FEBC11;      /* extra gold accent */
     border-bottom: 3px solid #FEBC11;
   }
 
@@ -172,6 +184,22 @@ ucsb_css <- HTML("
     font-size: 2.2em;
     font-weight: 800;
     color: white;
+    border-bottom: none;                /* remove the gold underline inside banner */
+    padding-bottom: 0;
+  }
+
+  /* --- Logo pinned to the top-left of the banner --- */
+  .banner-logo {
+    position: absolute;
+    top: 50%;
+    left: 24px;
+    transform: translateY(-50%);
+    height: 56px;
+  }
+
+  @media (max-width: 768px) {
+    .banner-logo { height: 42px; left: 12px; }
+    .top-banner h1 { font-size: 1.45em; padding: 0 64px; }
   }
 
   /* --- Tabs --- */
@@ -244,6 +272,7 @@ ucsb_css <- HTML("
     color: #ffffff;
     padding: 20px;
     border-radius: 8px;
+    border-left: 8px solid #FEBC11;     /* gold accent */
     margin-bottom: 20px;
   }
 
@@ -251,13 +280,77 @@ ucsb_css <- HTML("
     color: white;
     margin: 0 0 6px 0;
     font-size: 1.4em;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  /* --- Quick-nav cards on the Overview tab --- */
+  .nav-card-section-title {
+    text-align: center;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.95em;
+    color: #003660;
+    margin: 6px 0 14px 0;
+  }
+
+  .nav-card-section-title span {
+    border-bottom: 3px solid #FEBC11;   /* gold underline */
+    padding-bottom: 4px;
+  }
+
+  .nav-card-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 0 0 24px 0;
+  }
+
+  .nav-card {
+    flex: 1 1 200px;
+    background: #003660 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 26px 18px !important;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.1em !important;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    box-shadow: 0 2px 8px rgba(0,54,96,0.18);
+    line-height: 1.3;
+  }
+
+  .nav-card .fa,
+  .nav-card .fas,
+  .nav-card .far,
+  .nav-card svg {
+    display: block;
+    margin: 0 auto 10px auto;
+    font-size: 1.7em;
+  }
+
+  .nav-card:hover,
+  .nav-card:focus {
+    background: #FEBC11 !important;
+    color: #003660 !important;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 18px rgba(0,54,96,0.28);
+    outline: none;
   }
 
   /* --- Info Cards --- */
+  .overview-wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+  }
+
   .info-card {
     border-radius: 6px;
-    padding: 14px;
-    margin-bottom: 10px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
     border-left: 5px solid #DCE7F3;
     background: #F5F9FC;
   }
@@ -270,6 +363,29 @@ ucsb_css <- HTML("
   .info-card.blue {
     border-left: 5px solid #003660;
     background: #EDF4FA;
+  }
+
+  /* gold underline on card headings */
+  .info-card h4 {
+    display: inline-block;
+    border-bottom: 2px solid #FEBC11;
+    padding-bottom: 3px;
+    margin-bottom: 12px;
+  }
+
+  /* written-out data citation block */
+  .citation-box {
+    background: #FFFBEF;
+    border: 1px solid #FEBC11;
+    border-left: 6px solid #FEBC11;
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 6px auto 18px auto;
+    max-width: 760px;
+    text-align: left;
+    font-size: 0.95em;
+    color: #003660;
+    line-height: 1.5;
   }
 
   /* --- Badges --- */
@@ -307,106 +423,143 @@ ui <- tagList(
     theme = ucsb_theme,
     tags$head(tags$style(ucsb_css)),
     div(class = "top-banner",
+        tags$a(
+          href = "https://copr.nrs.ucsb.edu/", target = "_blank",
+          tags$img(src = "COPR_logo.png", class = "banner-logo", alt = "Coal Oil Point Reserve")
+        ),
         h1("Devereux Slough Water Quality Explorer")
     ),
     
     tabsetPanel(
+      id = "mainTabs",   # ✅ id lets the Overview buttons switch tabs
+      
       # --- Overview (COPR / Devereux Slough) ---
       tabPanel("Overview",
-               br(),
-               div(class = "hero",
-                   h3("Coal Oil Point Reserve — Devereux Slough Water Quality Monitoring"),
-                   div("An interactive dashboard to explore long-term monitoring data and seasonal patterns across multiple sites and depths.")
-               ),
-               fluidRow(
-                 column(
-                   7,
-                   div(class = "info-card gold",
-                       h4("What you can do"),
-                       tags$ul(
-                         tags$li("Analyze parameters with units: Temperature (C), Salinity (ppt), Dissolved Oxygen (mg/L, %), Conductivity-specific (mS/cm)."),
-                         tags$li("Filter by site, depth layer (or fixed pier depth), years, and months."),
-                         tags$li("Switch the map between Street and Satellite views; inspect popups for coordinates.")
-                       )
-                   )
-                 ),
-                 column(
-                   5,
-                   div(class = "info-card blue",
-                       h4("At a glance"),
-                       div(class = "badge", "Sites: Mouth (MO1)"),
-                       div(class = "badge", "Culvert (CUL1)"),
-                       div(class = "badge", "Bridge (VBR1)"),
-                       div(class = "badge", "Pier (PIER)"),
-                       br(),
-                       div(class = "badge badge-gold", "Surface & Bottom (non-PIER)"),
-                       div(class = "badge badge-gold", "Fixed depths at PIER")
-                   )
-                 )
-               ),
-               br(),
-               div(
-                 class = "info-card blue",  
-                 style = "margin: 0 auto; max-width: 900px; text-align: left; padding: 20px;",
-                 h4("How to use this app", style = "text-align: center; margin-bottom: 20px;"),
-                 tags$ol(
-                   tags$li(style = "margin-bottom: 10px;", strong("Trends → Time Series:"), " select a parameter to view changes through time at a site and depth."),
-                   tags$li(style = "margin-bottom: 10px;", strong("Trends → Seasonal Patterns:"), " compare monthly distributions across years."),
-                   tags$li(style = "margin-bottom: 10px;", strong("Map:"), " locate monitoring sites and toggle basemaps.")
-                 )
-               ),
-               br(),
-               h4("Data Notes"),
-               div(
-                 class = "data-notes",
-                 paste0(
-                   "Dataset covers ",
-                   format(min(df$Date, na.rm = TRUE), "%B %Y"), " to ",
-                   format(max(df$Date, na.rm = TRUE), "%B %Y"),
-                   " (", nrow(df), " observations across ",
-                   length(unique(df$Site)), " sites). "
-                 ),
-                 tags$i(
-                   paste0("Last updated: ",
-                          format(max(df$Date, na.rm = TRUE), "%B %d, %Y"))
-                 )
-               ),
-               br(),
-               div(
-                 class = "info-card blue",
-                 style = "text-align: center; padding: 20px; margin-top: 20px;",
-                 
-                 h4("Download Citation", style = "margin-bottom: 20px; color: #003660; font-weight: 700;"),
-                 
-                 tags$div(
-                   style = "display: flex; justify-content: center; flex-wrap: wrap; gap: 15px;",
+               div(class = "overview-wrap",
+                   br(),
+                   div(class = "hero",
+                       h3("Coal Oil Point Reserve — Devereux Slough Water Quality Monitoring"),
+                       div("An interactive dashboard to explore long-term monitoring data and seasonal patterns across multiple sites and depths.")
+                   ),
                    
-                   downloadButton("download_citation_txt", "Download Citation (.txt)", class = "btn btn-primary"),
-                   downloadButton("download_citation_bib", "Download Citation (.bib)", class = "btn btn-primary"),
-                   downloadButton("download_citation_ris", "Download Citation (.ris)", class = "btn btn-primary")
-                 )
-               ), 
-               
-               # --- Give page snippet ---
-               div(
-                 class = "info-card blue",
-                 style = "background-color: #EDF4FA; padding: 20px; text-align: center; border-radius: 6px; margin: 20px 0;",
-                 
-                 # First paragraph
-                 p("COPR interns have conducted weekly sampling to monitor key water-quality indicators. Updated monthly, this app allows users to toggle between years and months to visualize seasonal and long-term trends in the slough’s dynamic ecosystem."),
-                 
-                 # Second paragraph with bolded Give page reference
-                 p(strong("If you would like to support ongoing monitoring and student research at the reserve, please consider visiting our Give page.")),
-                 
-                 # Give page button
-                 tags$a(
-                   href = "https://give.ucsb.edu/campaigns/58565/donations/new",
-                   target = "_blank",
-                   class = "btn btn-primary",
-                   style = "margin-top: 10px;",  # Adds spacing above button
-                   "Donate"
-                 )
-               )
+                   # --- Quick-nav buttons to the other tabs ---
+                   div(class = "nav-card-section-title", tags$span("Jump to a section")),
+                   div(class = "nav-card-row",
+                       actionButton("go_trends",  "Explore Trends",
+                                    icon = icon("chart-line"), class = "nav-card"),
+                       actionButton("go_map",     "View Site Map",
+                                    icon = icon("map"), class = "nav-card"),
+                       actionButton("go_methods", "Methods & FAQ",
+                                    icon = icon("circle-question"), class = "nav-card")
+                   ),
+                   
+                   fluidRow(
+                     column(
+                       7,
+                       div(class = "info-card gold",
+                           h4("What you can do"),
+                           tags$ul(
+                             tags$li("Analyze parameters with units: Temperature (C), Salinity (ppt), Dissolved Oxygen (mg/L, %), Conductivity-specific (mS/cm)."),
+                             tags$li("Filter by site, depth layer (or fixed pier depth), years, and months."),
+                             tags$li("Switch the map between Street and Satellite views; inspect popups for coordinates.")
+                           )
+                       )
+                     ),
+                     column(
+                       5,
+                       div(class = "info-card blue",
+                           h4("At a glance"),
+                           div(class = "badge", "Sites: Mouth (MO1)"),
+                           div(class = "badge", "Culvert (CUL1)"),
+                           div(class = "badge", "Bridge (VBR1)"),
+                           div(class = "badge", "Pier (PIER)"),
+                           br(),
+                           div(class = "badge badge-gold", "Surface & Bottom (non-PIER)"),
+                           div(class = "badge badge-gold", "Fixed depths at PIER")
+                       )
+                     )
+                   ),
+                   br(),
+                   div(
+                     class = "info-card blue",  
+                     style = "margin: 0 auto; max-width: 900px; text-align: left; padding: 20px;",
+                     h4("How to use this app", style = "text-align: center; margin-bottom: 20px;"),
+                     tags$ol(
+                       tags$li(style = "margin-bottom: 10px;", strong("Trends → Time Series:"), " select a parameter to view changes through time at a site and depth."),
+                       tags$li(style = "margin-bottom: 10px;", strong("Trends → Seasonal Patterns:"), " compare monthly distributions across years."),
+                       tags$li(style = "margin-bottom: 10px;", strong("Map:"), " locate monitoring sites and toggle basemaps.")
+                     )
+                   ),
+                   br(),
+                   h4("Data Notes"),
+                   div(
+                     class = "data-notes",
+                     paste0(
+                       "Dataset covers ",
+                       format(min(df$Date, na.rm = TRUE), "%B %Y"), " to ",
+                       format(max(df$Date, na.rm = TRUE), "%B %Y"),
+                       " (", nrow(df), " observations across ",
+                       length(unique(df$Site)), " sites). "
+                     ),
+                     tags$i(
+                       paste0("Last updated: ",
+                              format(max(df$Date, na.rm = TRUE), "%B %d, %Y"))
+                     )
+                   ),
+                   br(),
+                   div(
+                     class = "info-card blue",
+                     style = "text-align: center; padding: 20px; margin-top: 20px;",
+                     
+                     h4("Data Citation", style = "color: #003660; font-weight: 700;"),
+                     
+                     # Written-out citation users can read / copy directly
+                     div(
+                       class = "citation-box",
+                       tags$div(style = "font-weight: 700; margin-bottom: 6px;", "Please cite this dataset as:"),
+                       data_citation
+                     ),
+                     
+                     tags$div(style = "font-weight: 600; margin-bottom: 10px;", "Download the citation:"),
+                     tags$div(
+                       style = "display: flex; justify-content: center; flex-wrap: wrap; gap: 15px;",
+                       
+                       downloadButton("download_citation_txt", "Citation (.txt)", class = "btn btn-primary"),
+                       downloadButton("download_citation_bib", "Citation (.bib)", class = "btn btn-primary"),
+                       downloadButton("download_citation_ris", "Citation (.ris)", class = "btn btn-primary")
+                     ),
+                     
+                     # Raw data download, sitting under the citation buttons
+                     tags$hr(style = "border-top: 1px solid #FEBC11; max-width: 760px; margin: 20px auto;"),
+                     tags$div(style = "font-weight: 600; margin-bottom: 10px;", "Download the full monitoring dataset:"),
+                     downloadButton("download_raw", "Download Raw Data (CSV)", class = "btn btn-primary"),
+                     tags$div(
+                       style = "font-size: 0.85em; color: #003660; font-style: italic; margin-top: 8px;",
+                       "Complete cleaned dataset — all sites, depths, and parameters."
+                     )
+                   ), 
+                   
+                   # --- Give page snippet ---
+                   div(
+                     class = "info-card blue",
+                     style = "background-color: #EDF4FA; padding: 20px; text-align: center; border-radius: 6px; margin: 20px 0;",
+                     
+                     # First paragraph
+                     p("COPR interns have conducted weekly sampling to monitor key water-quality indicators. Updated monthly, this app allows users to toggle between years and months to visualize seasonal and long-term trends in the slough’s dynamic ecosystem."),
+                     
+                     # Second paragraph with bolded Give page reference
+                     p(strong("If you would like to support ongoing monitoring and student research at the reserve, please consider visiting our Give page.")),
+                     
+                     # Give page button
+                     tags$a(
+                       href = "https://give.ucsb.edu/campaigns/58565/donations/new",
+                       target = "_blank",
+                       class = "btn btn-primary",
+                       style = "margin-top: 10px;",  # Adds spacing above button
+                       "Donate"
+                     )
+                   )
+               )  # close overview-wrap
       ),
       
       tabPanel("Trends",
@@ -527,7 +680,7 @@ ui <- tagList(
                    "."
                  )
                )
-      ), 
+      )
     ),
     
     div(
@@ -544,12 +697,9 @@ ui <- tagList(
     margin-top: 40px;
   ",
       
-      # Clickable logos
+      # Clickable logos (COPR logo now lives in the top banner)
       tags$a(href = "https://www.nrs.ucsb.edu/", target = "_blank",
              tags$img(src = "nrs_logo.png", height = "60px")),
-      
-      tags$a(href = "https://copr.nrs.ucsb.edu/", target = "_blank",
-             tags$img(src = "COPR_logo.png", height = "60px")),
       
       tags$a(href = "https://www.ucsb.edu/", target = "_blank",
              tags$img(src = "ucsb_logo.png", height = "60px"))
@@ -564,6 +714,18 @@ ui <- tagList(
 )
 # Server
 server <- function(input, output, session) {
+  
+  # --- Overview quick-nav buttons -> switch tabs ---
+  observeEvent(input$go_trends, {
+    updateTabsetPanel(session, "mainTabs", selected = "Trends")
+  })
+  observeEvent(input$go_map, {
+    updateTabsetPanel(session, "mainTabs", selected = "Map")
+  })
+  observeEvent(input$go_methods, {
+    updateTabsetPanel(session, "mainTabs", selected = "Methods & FAQ")
+  })
+  
   # Label helper for plots
   param_label <- reactive({
     names(param_choices)[match(input$parameter, param_choices)]
@@ -672,20 +834,28 @@ server <- function(input, output, session) {
       readr::write_csv(data, file, na = "")
     }
   )
-  # Data citation download
+  
+  # Raw / full dataset download (Overview tab)
+  output$download_raw <- downloadHandler(
+    filename = function() {
+      "devereux_water_quality_full_dataset.csv"
+    },
+    content = function(file) {
+      if (exists("clean_path") && file.exists(clean_path)) {
+        file.copy(clean_path, file, overwrite = TRUE)
+      } else {
+        readr::write_csv(df, file, na = "")
+      }
+    }
+  )
+  
+  # Data citation download (matches the citation shown on the Overview)
   output$download_citation_txt <- downloadHandler(
     filename = function() {
       "devereux_water_quality_citation.txt"
     },
     content = function(file) {
-      citation_text <- paste(
-        "Devereux Slough Water Quality Monitoring Dataset.",
-        "University of California, Santa Barbara, Coal Oil Point Reserve.",
-        "Accessed via interactive dashboard at https://copr.nrs.ucsb.edu/resources.",
-        "https://doi.org/10.5281/zenodo.17574906",  # Placeholder DOI
-        sep = "\n"
-      )
-      writeLines(citation_text, con = file)
+      writeLines(data_citation, con = file)
     }
   )
   
@@ -708,7 +878,7 @@ server <- function(input, output, session) {
       writeLines(bibtex_entry, con = file)
     }
   )
- 
+  
   output$download_citation_ris <- downloadHandler(
     filename = function() {
       "devereux_water_quality_citation.ris"
@@ -906,17 +1076,16 @@ server <- function(input, output, session) {
         )
     }
     
-if (input$showLegend) {
-  map <- map %>%
-    addLegend(
-      position = "bottomright",
-      colors = c("orange", "blue", "green", "red"),
-      labels = c("Mouth", "Culvert", "Bridge", "Pier"),
-      title = "Monitoring Sites",
-      opacity = 1,
-    )
-}
-
+    if (input$showLegend) {
+      map <- map %>%
+        addLegend(
+          position = "bottomright",
+          colors = c("orange", "blue", "green", "red"),
+          labels = c("Mouth", "Culvert", "Bridge", "Pier"),
+          title = "Monitoring Sites",
+          opacity = 1,
+        )
+    }
     
     map
   })
